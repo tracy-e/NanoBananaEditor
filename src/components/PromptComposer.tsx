@@ -3,7 +3,7 @@ import { Textarea } from './ui/Textarea';
 import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
 import { useImageGeneration, useImageEditing } from '../hooks/useImageGeneration';
-import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
+import { Upload, Wand2, Edit3, MousePointer, HelpCircle, ChevronDown, ChevronRight, RotateCcw } from 'lucide-react';
 import { blobToBase64 } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
 import { cn } from '../utils/cn';
@@ -43,12 +43,12 @@ export const PromptComposer: React.FC = () => {
 
   const handleGenerate = () => {
     if (!currentPrompt.trim()) return;
-    
+
     if (selectedTool === 'generate') {
       const referenceImages = uploadedImages
         .filter(img => img.includes('base64,'))
         .map(img => img.split('base64,')[1]);
-        
+
       generate({
         prompt: currentPrompt,
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
@@ -66,23 +66,13 @@ export const PromptComposer: React.FC = () => {
       try {
         const base64 = await blobToBase64(file);
         const dataUrl = `data:${file.type};base64,${base64}`;
-        
+
         if (selectedTool === 'generate') {
-          // Add to reference images (max 2)
-          if (uploadedImages.length < 2) {
-            addUploadedImage(dataUrl);
-          }
+          if (uploadedImages.length < 2) addUploadedImage(dataUrl);
         } else if (selectedTool === 'edit') {
-          // For edit mode, add to separate edit reference images (max 2)
-          if (editReferenceImages.length < 2) {
-            addEditReferenceImage(dataUrl);
-          }
-          // Set as canvas image if none exists
-          if (!canvasImage) {
-            setCanvasImage(dataUrl);
-          }
+          if (editReferenceImages.length < 2) addEditReferenceImage(dataUrl);
+          if (!canvasImage) setCanvasImage(dataUrl);
         } else if (selectedTool === 'mask') {
-          // For mask mode, set as canvas image immediately
           clearUploadedImages();
           addUploadedImage(dataUrl);
           setCanvasImage(dataUrl);
@@ -105,23 +95,23 @@ export const PromptComposer: React.FC = () => {
   };
 
   const tools = [
-    { id: 'generate', icon: Wand2, label: 'Generate', description: 'Create from text' },
-    { id: 'edit', icon: Edit3, label: 'Edit', description: 'Modify existing' },
-    { id: 'mask', icon: MousePointer, label: 'Select', description: 'Click to select' },
+    { id: 'generate', icon: Wand2, label: 'Generate' },
+    { id: 'edit', icon: Edit3, label: 'Edit' },
+    { id: 'mask', icon: MousePointer, label: 'Select' },
   ] as const;
 
   if (!showPromptPanel) {
     return (
-      <div className="w-8 bg-gray-950 border-r border-gray-800 flex flex-col items-center justify-center">
+      <div className="w-8 bg-white border-r border-stone-200 flex flex-col items-center justify-center">
         <button
           onClick={() => setShowPromptPanel(true)}
-          className="w-6 h-16 bg-gray-800 hover:bg-gray-700 rounded-r-lg border border-l-0 border-gray-700 flex items-center justify-center transition-colors group"
+          className="w-6 h-16 bg-stone-100 hover:bg-stone-200 rounded-r-lg border border-l-0 border-stone-200 flex items-center justify-center group"
           title="Show Prompt Panel"
         >
-          <div className="flex flex-col space-y-1">
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
-            <div className="w-1 h-1 bg-gray-500 group-hover:bg-gray-400 rounded-full"></div>
+          <div className="flex flex-col gap-0.5">
+            <div className="w-1 h-1 bg-stone-400 group-hover:bg-stone-500 rounded-full" />
+            <div className="w-1 h-1 bg-stone-400 group-hover:bg-stone-500 rounded-full" />
+            <div className="w-1 h-1 bg-stone-400 group-hover:bg-stone-500 rounded-full" />
           </div>
         </button>
       </div>
@@ -130,159 +120,143 @@ export const PromptComposer: React.FC = () => {
 
   return (
     <>
-    <div className="w-80 lg:w-72 xl:w-80 h-full bg-gray-950 border-r border-gray-800 p-6 flex flex-col space-y-6 overflow-y-auto">
+    <div className="w-80 lg:w-72 xl:w-80 h-full bg-white border-r border-stone-200 p-5 flex flex-col gap-5 overflow-y-auto">
+      {/* Mode */}
       <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-medium text-gray-300">Mode</h3>
-          <div className="flex items-center space-x-1">
+        <div className="flex items-center justify-between mb-2.5">
+          <h3 className="text-xs font-semibold text-stone-500 uppercase tracking-wider font-sans">Mode</h3>
+          <div className="flex items-center gap-0.5">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setShowHintsModal(true)}
               className="h-6 w-6"
             >
-              <HelpCircle className="h-4 w-4" />
+              <HelpCircle className="h-3.5 w-3.5" />
             </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => setShowPromptPanel(false)}
               className="h-6 w-6"
-              title="Hide Prompt Panel"
+              title="Hide"
             >
-              ×
+              <span className="text-xs">×</span>
             </Button>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {tools.map((tool) => (
             <button
               key={tool.id}
               onClick={() => setSelectedTool(tool.id)}
               className={cn(
-                'flex flex-col items-center p-3 rounded-lg border transition-all duration-200',
+                'flex flex-col items-center py-2.5 px-2 rounded-lg border text-xs font-medium',
                 selectedTool === tool.id
-                  ? 'bg-yellow-400/10 border-yellow-400/50 text-yellow-400'
-                  : 'bg-gray-900 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-gray-300'
+                  ? 'bg-amber-50 border-amber-200 text-amber-700'
+                  : 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-stone-100 hover:text-stone-600'
               )}
             >
-              <tool.icon className="h-5 w-5 mb-1" />
-              <span className="text-xs font-medium">{tool.label}</span>
+              <tool.icon className="h-4 w-4 mb-1" />
+              {tool.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* File Upload */}
+      {/* Upload */}
       <div>
-        <div>
-          <label className="text-sm font-medium text-gray-300 mb-1 block">
-            {selectedTool === 'generate' ? 'Reference Images' : selectedTool === 'edit' ? 'Style References' : 'Upload Image'}
-          </label>
-          {selectedTool === 'mask' && (
-            <p className="text-xs text-gray-400 mb-3">Edit an image with masks</p>
-          )}
-          {selectedTool === 'generate' && (
-            <p className="text-xs text-gray-500 mb-3">Optional, up to 2 images</p>
-          )}
-          {selectedTool === 'edit' && (
-            <p className="text-xs text-gray-500 mb-3">
-              {canvasImage ? 'Optional style references, up to 2 images' : 'Upload image to edit, up to 2 images'}
-            </p>
-          )}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleFileUpload}
-            className="hidden"
-          />
-          <Button
-            variant="outline"
-            onClick={() => fileInputRef.current?.click()}
-            className="w-full"
-            disabled={
-              (selectedTool === 'generate' && uploadedImages.length >= 2) ||
-              (selectedTool === 'edit' && editReferenceImages.length >= 2)
-            }
-          >
-            <Upload className="h-4 w-4 mr-2" />
-            Upload
-          </Button>
-          
-          {/* Show uploaded images preview */}
-          {((selectedTool === 'generate' && uploadedImages.length > 0) || 
-            (selectedTool === 'edit' && editReferenceImages.length > 0)) && (
-            <div className="mt-3 space-y-2">
-              {(selectedTool === 'generate' ? uploadedImages : editReferenceImages).map((image, index) => (
-                <div key={index} className="relative">
-                  <img
-                    src={image}
-                    alt={`Reference ${index + 1}`}
-                    className="w-full h-20 object-cover rounded-lg border border-gray-700"
-                  />
-                  <button
-                    onClick={() => selectedTool === 'generate' ? removeUploadedImage(index) : removeEditReferenceImage(index)}
-                    className="absolute top-1 right-1 bg-gray-900/80 text-gray-400 hover:text-gray-200 rounded-full p-1 transition-colors"
-                  >
-                    ×
-                  </button>
-                  <div className="absolute bottom-1 left-1 bg-gray-900/80 text-xs px-2 py-1 rounded text-gray-300">
-                    Ref {index + 1}
-                  </div>
+        <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1.5 block font-sans">
+          {selectedTool === 'generate' ? 'Reference' : selectedTool === 'edit' ? 'Style Ref' : 'Image'}
+        </label>
+        <p className="text-xs text-stone-400 mb-2.5">
+          {selectedTool === 'generate' && 'Optional, up to 2 images'}
+          {selectedTool === 'edit' && (canvasImage ? 'Optional style refs, up to 2' : 'Upload image to edit')}
+          {selectedTool === 'mask' && 'Edit an image with masks'}
+        </p>
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} className="hidden" />
+        <Button
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          className="w-full"
+          disabled={
+            (selectedTool === 'generate' && uploadedImages.length >= 2) ||
+            (selectedTool === 'edit' && editReferenceImages.length >= 2)
+          }
+        >
+          <Upload className="h-4 w-4 mr-2" />
+          Upload
+        </Button>
+
+        {((selectedTool === 'generate' && uploadedImages.length > 0) ||
+          (selectedTool === 'edit' && editReferenceImages.length > 0)) && (
+          <div className="mt-2.5 space-y-2">
+            {(selectedTool === 'generate' ? uploadedImages : editReferenceImages).map((image, index) => (
+              <div key={index} className="relative">
+                <img
+                  src={image}
+                  alt={`Reference ${index + 1}`}
+                  className="w-full h-20 object-cover rounded-lg border border-stone-200"
+                />
+                <button
+                  onClick={() => selectedTool === 'generate' ? removeUploadedImage(index) : removeEditReferenceImage(index)}
+                  className="absolute top-1 right-1 bg-white/90 text-stone-500 hover:text-stone-700 rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm"
+                >
+                  ×
+                </button>
+                <div className="absolute bottom-1 left-1 bg-white/90 text-xs px-1.5 py-0.5 rounded text-stone-600 shadow-sm">
+                  Ref {index + 1}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Prompt Input */}
+      {/* Prompt */}
       <div>
-        <label className="text-sm font-medium text-gray-300 mb-3 block">
-          {selectedTool === 'generate' ? 'Describe what you want to create' : 'Describe your changes'}
+        <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2 block font-sans">
+          Prompt
         </label>
         <Textarea
           value={currentPrompt}
           onChange={(e) => setCurrentPrompt(e.target.value)}
           placeholder={
             selectedTool === 'generate'
-              ? 'A serene mountain landscape at sunset with a lake reflecting the golden sky...'
+              ? 'A serene mountain landscape at sunset with a lake...'
               : 'Make the sky more dramatic, add storm clouds...'
           }
-          className="min-h-[120px] resize-none"
+          className="min-h-[100px] resize-none"
         />
-        
-        {/* Prompt Quality Indicator */}
-        <button 
+
+        <button
           onClick={() => setShowHintsModal(true)}
-          className="mt-2 flex items-center text-xs hover:text-gray-400 transition-colors group"
+          className="mt-1.5 flex items-center text-xs group"
         >
           {currentPrompt.length < 20 ? (
-            <HelpCircle className="h-3 w-3 mr-2 text-red-500 group-hover:text-red-400" />
+            <div className="h-1.5 w-1.5 rounded-full mr-1.5 bg-stone-300" />
           ) : (
             <div className={cn(
-              'h-2 w-2 rounded-full mr-2',
-              currentPrompt.length < 50 ? 'bg-yellow-500' : 'bg-green-500'
+              'h-1.5 w-1.5 rounded-full mr-1.5',
+              currentPrompt.length < 50 ? 'bg-amber-400' : 'bg-emerald-400'
             )} />
           )}
-          <span className="text-gray-500 group-hover:text-gray-400">
+          <span className="text-stone-400 group-hover:text-stone-500">
             {currentPrompt.length < 20 ? 'Add detail for better results' :
-             currentPrompt.length < 50 ? 'Good detail level' : 'Excellent prompt detail'}
+             currentPrompt.length < 50 ? 'Good detail' : 'Excellent detail'}
           </span>
         </button>
       </div>
 
-
-      {/* Generate Button */}
+      {/* Generate */}
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || !currentPrompt.trim()}
-        className="w-full h-14 text-base font-medium"
+        className="w-full h-11 text-sm font-semibold"
       >
         {isGenerating ? (
           <>
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2" />
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white mr-2" />
             Generating...
           </>
         ) : (
@@ -293,55 +267,42 @@ export const PromptComposer: React.FC = () => {
         )}
       </Button>
 
-      {/* Advanced Controls */}
+      {/* Advanced */}
       <div>
         <button
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className="flex items-center text-sm text-gray-400 hover:text-gray-300 transition-colors duration-200"
+          className="flex items-center text-xs text-stone-400 hover:text-stone-600"
         >
-          {showAdvanced ? <ChevronDown className="h-4 w-4 mr-1" /> : <ChevronRight className="h-4 w-4 mr-1" />}
-          {showAdvanced ? 'Hide' : 'Show'} Advanced Controls
+          {showAdvanced ? <ChevronDown className="h-3.5 w-3.5 mr-1" /> : <ChevronRight className="h-3.5 w-3.5 mr-1" />}
+          Advanced
         </button>
-        
+
         <button
           onClick={() => setShowClearConfirm(!showClearConfirm)}
-          className="flex items-center text-sm text-gray-400 hover:text-red-400 transition-colors duration-200 mt-2"
+          className="flex items-center text-xs text-stone-400 hover:text-red-500 mt-2"
         >
-          <RotateCcw className="h-4 w-4 mr-2" />
+          <RotateCcw className="h-3.5 w-3.5 mr-1.5" />
           Clear Session
         </button>
-        
+
         {showClearConfirm && (
-          <div className="mt-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
-            <p className="text-xs text-gray-300 mb-3">
-              Are you sure you want to clear this session? This will remove all uploads, prompts, and canvas content.
-            </p>
-            <div className="flex space-x-2">
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleClearSession}
-                className="flex-1"
-              >
-                Yes, Clear
+          <div className="mt-2.5 p-3 bg-stone-50 rounded-lg border border-stone-200">
+            <p className="text-xs text-stone-500 mb-2.5">Clear all uploads, prompts, and canvas?</p>
+            <div className="flex gap-2">
+              <Button variant="destructive" size="sm" onClick={handleClearSession} className="flex-1">
+                Clear
               </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowClearConfirm(false)}
-                className="flex-1"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowClearConfirm(false)} className="flex-1">
                 Cancel
               </Button>
             </div>
           </div>
         )}
-        
+
         {showAdvanced && (
-          <div className="mt-4 space-y-4">
-            {/* Temperature */}
+          <div className="mt-3 space-y-3">
             <div>
-              <label className="text-xs text-gray-400 mb-2 block">
+              <label className="text-xs text-stone-500 mb-1.5 block">
                 Creativity ({temperature})
               </label>
               <input
@@ -351,55 +312,41 @@ export const PromptComposer: React.FC = () => {
                 step="0.1"
                 value={temperature}
                 onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                className="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+                className="w-full h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer slider"
               />
             </div>
-            
-            {/* Seed */}
             <div>
-              <label className="text-xs text-gray-400 mb-2 block">
-                Seed (optional)
-              </label>
+              <label className="text-xs text-stone-500 mb-1.5 block">Seed</label>
               <input
                 type="number"
                 value={seed || ''}
                 onChange={(e) => setSeed(e.target.value ? parseInt(e.target.value) : null)}
                 placeholder="Random"
-                className="w-full h-8 px-2 bg-gray-900 border border-gray-700 rounded text-xs text-gray-100"
+                className="w-full h-8 px-2 bg-stone-50 border border-stone-200 rounded-lg text-xs text-stone-800 placeholder:text-stone-400 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
           </div>
         )}
       </div>
 
-      {/* Keyboard Shortcuts */}
-      <div className="pt-4 border-t border-gray-800">
-        <h4 className="text-xs font-medium text-gray-400 mb-2">Shortcuts</h4>
-        <div className="space-y-1 text-xs text-gray-500">
-          <div className="flex justify-between">
-            <span>Generate</span>
-            <span>⌘ + Enter</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Re-roll</span>
-            <span>⇧ + R</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Edit mode</span>
-            <span>E</span>
-          </div>
-          <div className="flex justify-between">
-            <span>History</span>
-            <span>H</span>
-          </div>
-          <div className="flex justify-between">
-            <span>Toggle Panel</span>
-            <span>P</span>
-          </div>
+      {/* Shortcuts */}
+      <div className="pt-4 border-t border-stone-100">
+        <h4 className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-2 font-sans">Shortcuts</h4>
+        <div className="space-y-1 text-xs text-stone-400">
+          {[
+            ['Generate', '⌘ Enter'],
+            ['Edit mode', 'E'],
+            ['History', 'H'],
+            ['Panel', 'P'],
+          ].map(([label, key]) => (
+            <div key={label} className="flex justify-between">
+              <span>{label}</span>
+              <kbd className="bg-stone-100 px-1.5 py-0.5 rounded text-stone-500 font-mono text-[10px]">{key}</kbd>
+            </div>
+          ))}
         </div>
       </div>
     </div>
-    {/* Prompt Hints Modal */}
     <PromptHints open={showHintsModal} onOpenChange={setShowHintsModal} />
     </>
   );

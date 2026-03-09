@@ -2,7 +2,17 @@ import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Project, Generation, Edit, SegmentationMask, BrushStroke } from '../types';
 
+export interface Toast {
+  message: string;
+  type: 'error' | 'success';
+}
+
 interface AppState {
+  // Toast
+  toast: Toast | null;
+  showToast: (toast: Toast) => void;
+  clearToast: () => void;
+
   // Current project
   currentProject: Project | null;
   
@@ -75,6 +85,14 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   devtools(
     (set, get) => ({
+      // Toast
+      toast: null,
+      showToast: (toast) => {
+        set({ toast });
+        setTimeout(() => set({ toast: null }), 4000);
+      },
+      clearToast: () => set({ toast: null }),
+
       // Initial state
       currentProject: null,
       canvasImage: null,

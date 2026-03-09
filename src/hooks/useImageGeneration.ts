@@ -5,7 +5,7 @@ import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset } from '../types';
 
 export const useImageGeneration = () => {
-  const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject } = useAppStore();
+  const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject, showToast } = useAppStore();
 
   const generateMutation = useMutation({
     mutationFn: async (request: GenerationRequest) => {
@@ -77,6 +77,7 @@ export const useImageGeneration = () => {
     },
     onError: (error) => {
       console.error('Generation failed:', error);
+      showToast({ message: error instanceof Error ? error.message : 'Generation failed', type: 'error' });
       setIsGenerating(false);
     }
   });
@@ -89,17 +90,19 @@ export const useImageGeneration = () => {
 };
 
 export const useImageEditing = () => {
-  const { 
-    addEdit, 
-    setIsGenerating, 
-    setCanvasImage, 
-    canvasImage, 
+  const {
+    addEdit,
+    setIsGenerating,
+    setCanvasImage,
+    canvasImage,
+    uploadedImages,
     editReferenceImages,
     brushStrokes,
     selectedGenerationId,
     currentProject,
     seed,
-    temperature 
+    temperature,
+    showToast
   } = useAppStore();
 
   const editMutation = useMutation({
@@ -262,6 +265,7 @@ export const useImageEditing = () => {
     },
     onError: (error) => {
       console.error('Edit failed:', error);
+      showToast({ message: error instanceof Error ? error.message : 'Edit failed', type: 'error' });
       setIsGenerating(false);
     }
   });

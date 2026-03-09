@@ -5,13 +5,14 @@ import { Header } from './components/Header';
 import { PromptComposer } from './components/PromptComposer';
 import { ImageCanvas } from './components/ImageCanvas';
 import { HistoryPanel } from './components/HistoryPanel';
+import { Toast } from './components/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000, // 5 minutes
+      staleTime: 5 * 60 * 1000,
       retry: 2,
     },
   },
@@ -19,10 +20,9 @@ const queryClient = new QueryClient({
 
 function AppContent() {
   useKeyboardShortcuts();
-  
+
   const { showPromptPanel, setShowPromptPanel, showHistory, setShowHistory } = useAppStore();
-  
-  // Set mobile defaults on mount
+
   React.useEffect(() => {
     const checkMobile = () => {
       const isMobile = window.innerWidth < 768;
@@ -31,16 +31,15 @@ function AppContent() {
         setShowHistory(false);
       }
     };
-    
     checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, [setShowPromptPanel, setShowHistory]);
 
   return (
-    <div className="h-screen bg-gray-900 text-gray-100 flex flex-col font-sans">
+    <div className="h-screen bg-stone-50 text-stone-800 flex flex-col font-body">
       <Header />
-      
+      <Toast />
       <div className="flex-1 flex overflow-hidden">
         <div className={cn("flex-shrink-0 transition-all duration-300", !showPromptPanel && "w-8")}>
           <PromptComposer />

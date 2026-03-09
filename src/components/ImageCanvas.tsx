@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
 import { ZoomIn, ZoomOut, RotateCcw, Download, Eye, EyeOff, Eraser } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { getApiSettings } from '../services/geminiService';
 
 export const ImageCanvas: React.FC = () => {
   const {
@@ -29,28 +30,19 @@ export const ImageCanvas: React.FC = () => {
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentStroke, setCurrentStroke] = useState<number[]>([]);
 
-  // Load image and auto-fit when canvasImage changes
   useEffect(() => {
     if (canvasImage) {
       const img = new window.Image();
       img.onload = () => {
         setImage(img);
-        
-        // Only auto-fit if this is a new image (no existing zoom/pan state)
         if (canvasZoom === 1 && canvasPan.x === 0 && canvasPan.y === 0) {
-          // Auto-fit image to canvas
           const isMobile = window.innerWidth < 768;
-          const padding = isMobile ? 0.9 : 0.8; // Use more of the screen on mobile
-          
+          const padding = isMobile ? 0.9 : 0.8;
           const scaleX = (stageSize.width * padding) / img.width;
           const scaleY = (stageSize.height * padding) / img.height;
-          
           const maxZoom = isMobile ? 0.3 : 0.8;
           const optimalZoom = Math.min(scaleX, scaleY, maxZoom);
-          
           setCanvasZoom(optimalZoom);
-          
-          // Center the image
           setCanvasPan({ x: 0, y: 0 });
         }
       };
@@ -60,18 +52,13 @@ export const ImageCanvas: React.FC = () => {
     }
   }, [canvasImage, stageSize, setCanvasZoom, setCanvasPan, canvasZoom, canvasPan]);
 
-  // Handle stage resize
   useEffect(() => {
     const updateSize = () => {
       const container = document.getElementById('canvas-container');
       if (container) {
-        setStageSize({
-          width: container.offsetWidth,
-          height: container.offsetHeight
-        });
+        setStageSize({ width: container.offsetWidth, height: container.offsetHeight });
       }
     };
-
     updateSize();
     window.addEventListener('resize', updateSize);
     return () => window.removeEventListener('resize', updateSize);
@@ -79,23 +66,13 @@ export const ImageCanvas: React.FC = () => {
 
   const handleMouseDown = (e: any) => {
     if (selectedTool !== 'mask' || !image) return;
-    
     setIsDrawing(true);
     const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-    
-    // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
-    
-    // Calculate image bounds on the stage
     const imageX = (stageSize.width / canvasZoom - image.width) / 2;
     const imageY = (stageSize.height / canvasZoom - image.height) / 2;
-    
-    // Convert to image-relative coordinates
     const relativeX = relativePos.x - imageX;
     const relativeY = relativePos.y - imageY;
-    
-    // Check if click is within image bounds
     if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
       setCurrentStroke([relativeX, relativeY]);
     }
@@ -103,22 +80,12 @@ export const ImageCanvas: React.FC = () => {
 
   const handleMouseMove = (e: any) => {
     if (!isDrawing || selectedTool !== 'mask' || !image) return;
-    
     const stage = e.target.getStage();
-    const pos = stage.getPointerPosition();
-    
-    // Use Konva's getRelativePointerPosition for accurate coordinates
     const relativePos = stage.getRelativePointerPosition();
-    
-    // Calculate image bounds on the stage
     const imageX = (stageSize.width / canvasZoom - image.width) / 2;
     const imageY = (stageSize.height / canvasZoom - image.height) / 2;
-    
-    // Convert to image-relative coordinates
     const relativeX = relativePos.x - imageX;
     const relativeY = relativePos.y - imageY;
-    
-    // Check if within image bounds
     if (relativeX >= 0 && relativeX <= image.width && relativeY >= 0 && relativeY <= image.height) {
       setCurrentStroke([...currentStroke, relativeX, relativeY]);
     }
@@ -130,7 +97,6 @@ export const ImageCanvas: React.FC = () => {
       setCurrentStroke([]);
       return;
     }
-    
     setIsDrawing(false);
     addBrushStroke({
       id: `stroke-${Date.now()}`,
@@ -141,8 +107,7 @@ export const ImageCanvas: React.FC = () => {
   };
 
   const handleZoom = (delta: number) => {
-    const newZoom = Math.max(0.1, Math.min(3, canvasZoom + delta));
-    setCanvasZoom(newZoom);
+    setCanvasZoom(Math.max(0.1, Math.min(3, canvasZoom + delta)));
   };
 
   const handleReset = () => {
@@ -152,65 +117,67 @@ export const ImageCanvas: React.FC = () => {
       const scaleX = (stageSize.width * padding) / image.width;
       const scaleY = (stageSize.height * padding) / image.height;
       const maxZoom = isMobile ? 0.3 : 0.8;
-      const optimalZoom = Math.min(scaleX, scaleY, maxZoom);
-      
-      setCanvasZoom(optimalZoom);
+      setCanvasZoom(Math.min(scaleX, scaleY, maxZoom));
       setCanvasPan({ x: 0, y: 0 });
     }
   };
 
   const handleDownload = () => {
-    if (canvasImage) {
-      if (canvasImage.startsWith('data:')) {
-        const link = document.createElement('a');
-        link.href = canvasImage;
-        link.download = `nano-banana-${Date.now()}.png`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+    if (canvasImage?.startsWith('data:')) {
+      const link = document.createElement('a');
+      link.href = canvasImage;
+      link.download = `nano-banana-${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   };
+
+  const [modelName, setModelName] = useState(getApiSettings().model);
+  useEffect(() => {
+    const update = () => setModelName(getApiSettings().model);
+    window.addEventListener('api-settings-changed', update);
+    return () => window.removeEventListener('api-settings-changed', update);
+  }, []);
 
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="p-3 border-b border-gray-800 bg-gray-950">
+      <div className="px-4 py-2.5 border-b border-stone-200 bg-white">
         <div className="flex items-center justify-between">
-          {/* Left side - Zoom controls */}
-          <div className="flex items-center space-x-2">
-            <Button variant="outline" size="sm" onClick={() => handleZoom(-0.1)}>
+          <div className="flex items-center gap-1.5">
+            <Button variant="ghost" size="sm" onClick={() => handleZoom(-0.1)}>
               <ZoomOut className="h-4 w-4" />
             </Button>
-            <span className="text-sm text-gray-400 min-w-[60px] text-center">
+            <span className="text-xs text-stone-500 min-w-[48px] text-center font-medium tabular-nums">
               {Math.round(canvasZoom * 100)}%
             </span>
-            <Button variant="outline" size="sm" onClick={() => handleZoom(0.1)}>
+            <Button variant="ghost" size="sm" onClick={() => handleZoom(0.1)}>
               <ZoomIn className="h-4 w-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={handleReset}>
-              <RotateCcw className="h-4 w-4" />
+            <div className="w-px h-4 bg-stone-200 mx-1" />
+            <Button variant="ghost" size="sm" onClick={handleReset}>
+              <RotateCcw className="h-3.5 w-3.5" />
             </Button>
           </div>
 
-          {/* Right side - Tools and actions */}
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-1.5">
             {selectedTool === 'mask' && (
               <>
-                <div className="flex items-center space-x-2 mr-2">
-                  <span className="text-xs text-gray-400">Brush:</span>
+                <div className="flex items-center gap-2 mr-2">
+                  <span className="text-xs text-stone-500">Brush:</span>
                   <input
                     type="range"
                     min="5"
                     max="50"
                     value={brushSize}
                     onChange={(e) => setBrushSize(parseInt(e.target.value))}
-                    className="w-16 h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer slider"
+                    className="w-16 h-1.5 bg-stone-200 rounded-lg appearance-none cursor-pointer slider"
                   />
-                  <span className="text-xs text-gray-400 w-6">{brushSize}</span>
+                  <span className="text-xs text-stone-500 w-5 tabular-nums">{brushSize}</span>
                 </div>
                 <Button
-                  variant="outline"
+                  variant="ghost"
                   size="sm"
                   onClick={clearBrushStrokes}
                   disabled={brushStrokes.length === 0}
@@ -219,42 +186,45 @@ export const ImageCanvas: React.FC = () => {
                 </Button>
               </>
             )}
-            
+
             <Button
-              variant="outline"
+              variant="ghost"
               size="sm"
               onClick={() => setShowMasks(!showMasks)}
-              className={cn(showMasks && 'bg-yellow-400/10 border-yellow-400/50')}
+              className={cn(showMasks && 'bg-amber-50 text-amber-700')}
             >
               {showMasks ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-              <span className="hidden sm:inline ml-2">Masks</span>
+              <span className="hidden sm:inline ml-1.5 text-xs">Masks</span>
             </Button>
-            
+
             {canvasImage && (
               <Button variant="secondary" size="sm" onClick={handleDownload}>
-                <Download className="h-4 w-4 mr-2" />
-                <span className="hidden sm:inline">Download</span>
+                <Download className="h-4 w-4 mr-1.5" />
+                <span className="hidden sm:inline text-xs">Download</span>
               </Button>
             )}
           </div>
         </div>
       </div>
 
-      {/* Canvas Area */}
-      <div 
-        id="canvas-container" 
-        className="flex-1 relative overflow-hidden bg-gray-800"
+      {/* Canvas */}
+      <div
+        id="canvas-container"
+        className="flex-1 relative overflow-hidden bg-stone-100"
+        style={{ backgroundImage: 'radial-gradient(circle, #d6d3d1 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }}
       >
         {!image && !isGenerating && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div className="text-center">
-              <div className="text-6xl mb-4">🍌</div>
-              <h2 className="text-xl font-medium text-gray-300 mb-2">
-                Welcome to Nano Banana Framework
+              <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🍌</span>
+              </div>
+              <h2 className="text-lg font-semibold text-stone-700 mb-1.5 font-sans">
+                Ready to create
               </h2>
-              <p className="text-gray-500 max-w-md">
-                {selectedTool === 'generate' 
-                  ? 'Start by describing what you want to create in the prompt box'
+              <p className="text-stone-400 text-sm max-w-xs">
+                {selectedTool === 'generate'
+                  ? 'Describe what you want to create in the prompt box'
                   : 'Upload an image to begin editing'
                 }
               </p>
@@ -263,10 +233,10 @@ export const ImageCanvas: React.FC = () => {
         )}
 
         {isGenerating && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/60 backdrop-blur-sm z-10">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400 mb-4" />
-              <p className="text-gray-300">Creating your image...</p>
+              <div className="animate-spin rounded-full h-10 w-10 border-2 border-stone-200 border-t-amber-500 mb-4 mx-auto" />
+              <p className="text-stone-500 text-sm">Creating your image...</p>
             </div>
           </div>
         )}
@@ -281,17 +251,15 @@ export const ImageCanvas: React.FC = () => {
           y={canvasPan.y * canvasZoom}
           draggable={selectedTool !== 'mask'}
           onDragEnd={(e) => {
-            setCanvasPan({ 
-              x: e.target.x() / canvasZoom, 
-              y: e.target.y() / canvasZoom 
+            setCanvasPan({
+              x: e.target.x() / canvasZoom,
+              y: e.target.y() / canvasZoom
             });
           }}
           onMouseDown={handleMouseDown}
           onMousemove={handleMouseMove}
           onMouseup={handleMouseUp}
-          style={{ 
-            cursor: selectedTool === 'mask' ? 'crosshair' : 'default' 
-          }}
+          style={{ cursor: selectedTool === 'mask' ? 'crosshair' : 'default' }}
         >
           <Layer>
             {image && (
@@ -301,8 +269,7 @@ export const ImageCanvas: React.FC = () => {
                 y={(stageSize.height / canvasZoom - image.height) / 2}
               />
             )}
-            
-            {/* Brush Strokes */}
+
             {showMasks && brushStrokes.map((stroke) => (
               <Line
                 key={stroke.id}
@@ -318,8 +285,7 @@ export const ImageCanvas: React.FC = () => {
                 y={(stageSize.height / canvasZoom - (image?.height || 0)) / 2}
               />
             ))}
-            
-            {/* Current stroke being drawn */}
+
             {isDrawing && currentStroke.length > 2 && (
               <Line
                 points={currentStroke}
@@ -339,30 +305,15 @@ export const ImageCanvas: React.FC = () => {
       </div>
 
       {/* Status Bar */}
-      <div className="p-3 border-t border-gray-800 bg-gray-950">
-        <div className="flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center space-x-4">
-            {brushStrokes.length > 0 && (
-              <span className="text-yellow-400">{brushStrokes.length} brush stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
-            )}
+      <div className="px-4 py-2 border-t border-stone-200 bg-white">
+        <div className="flex items-center gap-4 text-xs text-stone-400">
+          <div className="flex items-center gap-1.5">
+            <span className="text-amber-600">Model:</span>
+            <span className="text-stone-500">{modelName}</span>
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              © 2025 Mark Fulton - 
-              <a
-                href="https://www.reinventing.ai/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-yellow-400 hover:text-yellow-300 transition-colors ml-1"
-              >
-                Reinventing.AI Solutions
-              </a>
-            </span>
-            <span className="text-gray-600 hidden md:inline">•</span>
-            <span className="text-yellow-400 hidden md:inline">⚡</span>
-            <span className="hidden md:inline">Powered by Gemini 2.5 Flash Image</span>
-          </div>
+          {brushStrokes.length > 0 && (
+            <span className="text-purple-500 font-medium">{brushStrokes.length} stroke{brushStrokes.length !== 1 ? 's' : ''}</span>
+          )}
         </div>
       </div>
     </div>
