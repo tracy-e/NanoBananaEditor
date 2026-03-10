@@ -263,7 +263,7 @@ export const HistoryPanel: React.FC = () => {
           variant="outline"
           size="sm"
           className="w-full"
-          onClick={() => {
+          onClick={async () => {
             let imageUrl: string | null = null;
             if (selectedGenerationId) {
               const gen = generations.find(g => g.id === selectedGenerationId);
@@ -271,14 +271,43 @@ export const HistoryPanel: React.FC = () => {
             } else {
               imageUrl = useAppStore.getState().canvasImage;
             }
-            if (imageUrl?.startsWith('data:')) {
-              const link = document.createElement('a');
-              link.href = imageUrl;
-              link.download = `nano-banana-${Date.now()}.png`;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+            if (!imageUrl) return;
+
+            // Convert to Uint8Array
+            let u8: Uint8Array;
+            if (imageUrl.startsWith('data:')) {
+              const arr = imageUrl.split(',');
+              const bstr = atob(arr[1]);
+              u8 = new Uint8Array(bstr.length);
+              for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+            } else {
+              const res = await fetch(imageUrl);
+              const buf = await res.arrayBuffer();
+              u8 = new Uint8Array(buf);
             }
+
+            const fileName = `nano-banana-${Date.now()}.png`;
+
+            // Tauri (Pake): save directly to Downloads folder
+            if ((window as any).__TAURI__?.core?.invoke) {
+              try {
+                await (window as any).__TAURI__.core.invoke('download_file_by_binary', {
+                  params: { filename: fileName, binary: Array.from(u8) }
+                });
+                return;
+              } catch {}
+            }
+
+            // Browser fallback
+            const blob = new Blob([u8], { type: 'image/png' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            setTimeout(() => URL.revokeObjectURL(url), 60000);
           }}
           disabled={!selectedGenerationId && !useAppStore.getState().canvasImage}
         >

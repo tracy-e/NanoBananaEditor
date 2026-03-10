@@ -122,15 +122,35 @@ export const ImageCanvas: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (canvasImage?.startsWith('data:')) {
-      const link = document.createElement('a');
-      link.href = canvasImage;
-      link.download = `nano-banana-${Date.now()}.png`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+  const handleDownload = async () => {
+    if (!canvasImage) return;
+    const arr = canvasImage.split(',');
+    const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/png';
+    const bstr = atob(arr[1]);
+    const u8 = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8[i] = bstr.charCodeAt(i);
+    const filename = `nano-banana-${Date.now()}.png`;
+
+    // Tauri (Pake): save directly to Downloads folder
+    if ((window as any).__TAURI__?.core?.invoke) {
+      try {
+        await (window as any).__TAURI__.core.invoke('download_file_by_binary', {
+          params: { filename, binary: Array.from(u8) }
+        });
+        return;
+      } catch {}
     }
+
+    // Browser fallback
+    const blob = new Blob([u8], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const [modelName, setModelName] = useState(getApiSettings().model);
