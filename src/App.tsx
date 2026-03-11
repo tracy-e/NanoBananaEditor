@@ -8,6 +8,8 @@ import { HistoryPanel } from './components/HistoryPanel';
 import { Toast } from './components/Toast';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
+import { CacheService } from './services/cacheService';
+import { initApiSettings } from './services/geminiService';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -21,7 +23,19 @@ const queryClient = new QueryClient({
 function AppContent() {
   useKeyboardShortcuts();
 
-  const { showPromptPanel, setShowPromptPanel, showHistory, setShowHistory } = useAppStore();
+  const { showPromptPanel, setShowPromptPanel, showHistory, setShowHistory, loadProject } = useAppStore();
+
+  React.useEffect(() => {
+    // Restore API settings from persistent storage, then restore project
+    initApiSettings().then(() =>
+      CacheService.getAllProjects().then((projects) => {
+        if (projects.length > 0) {
+          const latest = projects.sort((a, b) => b.updatedAt - a.updatedAt)[0];
+          loadProject(latest);
+        }
+      })
+    );
+  }, [loadProject]);
 
   React.useEffect(() => {
     const checkMobile = () => {

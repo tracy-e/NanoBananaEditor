@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from './ui/Button';
-import { History, Download, Image as ImageIcon } from 'lucide-react';
+import { History, Download, Image as ImageIcon, X } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { ImagePreviewModal } from './ImagePreviewModal';
 
@@ -16,7 +16,9 @@ export const HistoryPanel: React.FC = () => {
     showHistory,
     setShowHistory,
     setCanvasImage,
-    selectedTool
+    selectedTool,
+    removeGeneration,
+    removeEdit
   } = useAppStore();
 
   const [previewModal, setPreviewModal] = React.useState<{
@@ -82,11 +84,11 @@ export const HistoryPanel: React.FC = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
-            {generations.slice(-2).map((generation, index) => (
+            {generations.map((generation, index) => (
               <div
                 key={generation.id}
                 className={cn(
-                  'relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden',
+                  'group/item relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden',
                   selectedGenerationId === generation.id
                     ? 'border-amber-400 shadow-sm'
                     : 'border-stone-200 hover:border-stone-300'
@@ -106,14 +108,21 @@ export const HistoryPanel: React.FC = () => {
                 <div className="absolute top-1.5 left-1.5 bg-white/90 text-xs px-1.5 py-0.5 rounded shadow-sm text-stone-600">
                   #{index + 1}
                 </div>
+                <button
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/50 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); removeGeneration(generation.id); }}
+                  title="Delete"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
               </div>
             ))}
 
-            {edits.slice(-2).map((edit, index) => (
+            {edits.map((edit, index) => (
               <div
                 key={edit.id}
                 className={cn(
-                  'relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden',
+                  'group/item relative aspect-square rounded-lg border-2 cursor-pointer overflow-hidden',
                   selectedEditId === edit.id
                     ? 'border-amber-400 shadow-sm'
                     : 'border-stone-200 hover:border-stone-300'
@@ -136,6 +145,13 @@ export const HistoryPanel: React.FC = () => {
                 <div className="absolute top-1.5 left-1.5 bg-purple-100 text-xs px-1.5 py-0.5 rounded text-purple-600">
                   Edit #{index + 1}
                 </div>
+                <button
+                  className="absolute top-1 right-1 w-5 h-5 bg-black/50 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover/item:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); removeEdit(edit.id); }}
+                  title="Delete"
+                >
+                  <X className="h-3 w-3 text-white" />
+                </button>
               </div>
             ))}
           </div>
@@ -175,9 +191,9 @@ export const HistoryPanel: React.FC = () => {
                   <span className="text-stone-400">Prompt:</span>
                   <p className="text-stone-700 mt-0.5">{gen.prompt}</p>
                 </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-stone-400">Model</span>
-                  <span className="text-stone-500">{gen.modelVersion}</span>
+                <div className="text-xs text-stone-500">
+                  <span className="text-stone-400">Model:</span>
+                  <p className="text-stone-700 mt-0.5 break-all">{gen.modelVersion}</p>
                 </div>
                 {gen.parameters.seed && (
                   <div className="flex justify-between text-xs">

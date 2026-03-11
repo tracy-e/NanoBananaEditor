@@ -22,7 +22,37 @@ const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; model: string }> = {
   },
 };
 
-export function getApiSettings(): ApiSettings {
+const DEFAULT_SETTINGS: ApiSettings = {
+  provider: 'custom',
+  apiKey: '',
+  baseUrl: 'https://openrouter.ai/api/v1',
+  model: 'google/gemini-2.5-flash-image-preview',
+};
+
+// In-memory cache so getApiSettings() stays synchronous
+let _cachedSettings: ApiSettings | null = null;
+
+function hasElectronAPI(): boolean {
+  return !!(window as any).electronAPI;
+}
+
+/** Load settings from Electron (persistent) or localStorage (fallback). Call once at startup. */
+export async function initApiSettings(): Promise<ApiSettings> {
+  if (hasElectronAPI()) {
+    const data = await (window as any).electronAPI.loadSettings();
+    if (data?.apiKey) {
+      _cachedSettings = data;
+      // Sync to localStorage so the rest of the app can read synchronously
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      return data;
+    }
+  }
+  // Fallback: localStorage
+  _cachedSettings = getApiSettingsFromStorage();
+  return _cachedSettings;
+}
+
+function getApiSettingsFromStorage(): ApiSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
@@ -30,18 +60,22 @@ export function getApiSettings(): ApiSettings {
       if (settings.apiKey) return settings;
     }
   } catch { /* ignore */ }
+  return DEFAULT_SETTINGS;
+}
 
-  // No fallback to env vars — settings must come from UI
-  return {
-    provider: 'custom',
-    apiKey: '',
-    baseUrl: 'https://openrouter.ai/api/v1',
-    model: 'google/gemini-2.5-flash-image-preview',
-  };
+export function getApiSettings(): ApiSettings {
+  if (_cachedSettings) return _cachedSettings;
+  _cachedSettings = getApiSettingsFromStorage();
+  return _cachedSettings;
 }
 
 export function saveApiSettings(settings: ApiSettings) {
+  _cachedSettings = settings;
   localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+  // Persist to ~/.config/ via Electron IPC (fire-and-forget)
+  if (hasElectronAPI()) {
+    (window as any).electronAPI.saveSettings(settings);
+  }
   window.dispatchEvent(new Event('api-settings-changed'));
 }
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Textarea } from './ui/Textarea';
 import { Button } from './ui/Button';
 import { useAppStore } from '../store/useAppStore';
@@ -26,7 +26,9 @@ export const PromptComposer: React.FC = () => {
     editReferenceImages,
     addEditReferenceImage,
     removeEditReferenceImage,
+    reorderEditReferenceImages,
     clearEditReferenceImages,
+    reorderUploadedImages,
     canvasImage,
     setCanvasImage,
     showPromptPanel,
@@ -40,6 +42,7 @@ export const PromptComposer: React.FC = () => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [showHintsModal, setShowHintsModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const dragIndexRef = useRef<number | null>(null);
 
   const handleGenerate = () => {
     if (!currentPrompt.trim()) return;
@@ -190,13 +193,27 @@ export const PromptComposer: React.FC = () => {
 
         {((selectedTool === 'generate' && uploadedImages.length > 0) ||
           (selectedTool === 'edit' && editReferenceImages.length > 0)) && (
-          <div className="mt-2.5 space-y-2">
+          <div className="mt-2.5 grid grid-cols-2 gap-2">
             {(selectedTool === 'generate' ? uploadedImages : editReferenceImages).map((image, index) => (
-              <div key={index} className="relative">
+              <div
+                key={index}
+                className="relative aspect-square rounded-lg border border-stone-200 overflow-hidden cursor-grab active:cursor-grabbing"
+                draggable
+                onDragStart={() => { dragIndexRef.current = index; }}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={() => {
+                  if (dragIndexRef.current !== null && dragIndexRef.current !== index) {
+                    if (selectedTool === 'generate') reorderUploadedImages(dragIndexRef.current, index);
+                    else reorderEditReferenceImages(dragIndexRef.current, index);
+                  }
+                  dragIndexRef.current = null;
+                }}
+                onDragEnd={() => { dragIndexRef.current = null; }}
+              >
                 <img
                   src={image}
                   alt={`Reference ${index + 1}`}
-                  className="w-full h-20 object-cover rounded-lg border border-stone-200"
+                  className="w-full h-full object-cover"
                 />
                 <button
                   onClick={() => selectedTool === 'generate' ? removeUploadedImage(index) : removeEditReferenceImage(index)}

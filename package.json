@@ -25,7 +25,11 @@
     "mac": {
       "target": "dmg",
       "category": "public.app-category.graphics-design",
-      "identity": null
+      "identity": "Ease Yi (JR72TPTX4M)",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
     },
     "npmRebuild": false
   },

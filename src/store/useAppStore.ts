@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { Project, Generation, Edit, SegmentationMask, BrushStroke } from '../types';
+import { CacheService } from '../services/cacheService';
 
 export interface Toast {
   message: string;
@@ -48,6 +49,7 @@ interface AppState {
   selectedTool: 'generate' | 'edit' | 'mask';
   
   // Actions
+  loadProject: (project: Project) => void;
   setCurrentProject: (project: Project | null) => void;
   setCanvasImage: (url: string | null) => void;
   setCanvasZoom: (zoom: number) => void;
@@ -55,10 +57,12 @@ interface AppState {
   
   addUploadedImage: (url: string) => void;
   removeUploadedImage: (index: number) => void;
+  reorderUploadedImages: (from: number, to: number) => void;
   clearUploadedImages: () => void;
-  
+
   addEditReferenceImage: (url: string) => void;
   removeEditReferenceImage: (index: number) => void;
+  reorderEditReferenceImages: (from: number, to: number) => void;
   clearEditReferenceImages: () => void;
   
   addBrushStroke: (stroke: BrushStroke) => void;
@@ -72,7 +76,9 @@ interface AppState {
   setSeed: (seed: number | null) => void;
   
   addGeneration: (generation: Generation) => void;
+  removeGeneration: (id: string) => void;
   addEdit: (edit: Edit) => void;
+  removeEdit: (id: string) => void;
   selectGeneration: (id: string | null) => void;
   selectEdit: (id: string | null) => void;
   setShowHistory: (show: boolean) => void;
@@ -120,7 +126,11 @@ export const useAppStore = create<AppState>()(
       selectedTool: 'generate',
       
       // Actions
-      setCurrentProject: (project) => set({ currentProject: project }),
+      loadProject: (project) => set({ currentProject: project }),
+      setCurrentProject: (project) => {
+        set({ currentProject: project });
+        if (project) CacheService.saveProject(project);
+      },
       setCanvasImage: (url) => set({ canvasImage: url }),
       setCanvasZoom: (zoom) => set({ canvasZoom: zoom }),
       setCanvasPan: (pan) => set({ canvasPan: pan }),
@@ -128,17 +138,29 @@ export const useAppStore = create<AppState>()(
       addUploadedImage: (url) => set((state) => ({ 
         uploadedImages: [...state.uploadedImages, url] 
       })),
-      removeUploadedImage: (index) => set((state) => ({ 
-        uploadedImages: state.uploadedImages.filter((_, i) => i !== index) 
+      removeUploadedImage: (index) => set((state) => ({
+        uploadedImages: state.uploadedImages.filter((_, i) => i !== index)
       })),
+      reorderUploadedImages: (from, to) => set((state) => {
+        const arr = [...state.uploadedImages];
+        const [item] = arr.splice(from, 1);
+        arr.splice(to, 0, item);
+        return { uploadedImages: arr };
+      }),
       clearUploadedImages: () => set({ uploadedImages: [] }),
-      
-      addEditReferenceImage: (url) => set((state) => ({ 
-        editReferenceImages: [...state.editReferenceImages, url] 
+
+      addEditReferenceImage: (url) => set((state) => ({
+        editReferenceImages: [...state.editReferenceImages, url]
       })),
-      removeEditReferenceImage: (index) => set((state) => ({ 
-        editReferenceImages: state.editReferenceImages.filter((_, i) => i !== index) 
+      removeEditReferenceImage: (index) => set((state) => ({
+        editReferenceImages: state.editReferenceImages.filter((_, i) => i !== index)
       })),
+      reorderEditReferenceImages: (from, to) => set((state) => {
+        const arr = [...state.editReferenceImages];
+        const [item] = arr.splice(from, 1);
+        arr.splice(to, 0, item);
+        return { editReferenceImages: arr };
+      }),
       clearEditReferenceImages: () => set({ editReferenceImages: [] }),
       
       addBrushStroke: (stroke) => set((state) => ({ 
@@ -153,21 +175,69 @@ export const useAppStore = create<AppState>()(
       setTemperature: (temp) => set({ temperature: temp }),
       setSeed: (seed) => set({ seed: seed }),
       
-      addGeneration: (generation) => set((state) => ({
-        currentProject: state.currentProject ? {
-          ...state.currentProject,
-          generations: [...state.currentProject.generations, generation],
-          updatedAt: Date.now()
-        } : null
-      })),
-      
-      addEdit: (edit) => set((state) => ({
-        currentProject: state.currentProject ? {
-          ...state.currentProject,
-          edits: [...state.currentProject.edits, edit],
-          updatedAt: Date.now()
-        } : null
-      })),
+      addGeneration: (generation) => {
+        set((state) => ({
+          currentProject: state.currentProject ? {
+            ...state.currentProject,
+            generations: [...state.currentProject.generations, generation],
+            updatedAt: Date.now()
+          } : null
+        }));
+        const project = get().currentProject;
+        if (project) CacheService.saveProject(project);
+      },
+
+      removeGeneration: (id) => {
+        set((state) => {
+          if (!state.currentProject) return {};
+          const updates: Partial<AppState> = {
+            currentProject: {
+              ...state.currentProject,
+              generations: state.currentProject.generations.filter(g => g.id !== id),
+              updatedAt: Date.now()
+            }
+          };
+          if (state.selectedGenerationId === id) {
+            updates.selectedGenerationId = null;
+            updates.canvasImage = null;
+          }
+          return updates;
+        });
+        const project = get().currentProject;
+        if (project) CacheService.saveProject(project);
+      },
+
+      addEdit: (edit) => {
+        set((state) => ({
+          currentProject: state.currentProject ? {
+            ...state.currentProject,
+            edits: [...state.currentProject.edits, edit],
+            updatedAt: Date.now()
+          } : null
+        }));
+        const project = get().currentProject;
+        if (project) CacheService.saveProject(project);
+      },
+
+      removeEdit: (id) => {
+        set((state) => {
+          if (!state.currentProject) return {};
+          const updates: Partial<AppState> = {
+            currentProject: {
+              ...state.currentProject,
+              edits: state.currentProject.edits.filter(e => e.id !== id),
+              updatedAt: Date.now()
+            }
+          };
+          if (state.selectedEditId === id) {
+            updates.selectedEditId = null;
+            updates.canvasImage = null;
+          }
+          return updates;
+        });
+        const project = get().currentProject;
+        if (project) CacheService.saveProject(project);
+      },
       
       selectGeneration: (id) => set({ selectedGenerationId: id }),
       selectEdit: (id) => set({ selectedEditId: id }),

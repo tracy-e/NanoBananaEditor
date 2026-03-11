@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { geminiService, GenerationRequest, EditRequest } from '../services/geminiService';
+import { geminiService, GenerationRequest, EditRequest, getApiSettings } from '../services/geminiService';
 import { useAppStore } from '../store/useAppStore';
 import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset } from '../types';
@@ -53,7 +53,7 @@ export const useImageGeneration = () => {
             checksum: img.slice(0, 32)
           })) : [],
           outputAssets,
-          modelVersion: 'gemini-2.5-flash-image-preview',
+          modelVersion: getApiSettings().model,
           timestamp: Date.now()
         };
 

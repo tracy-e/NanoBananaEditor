@@ -29,3 +29,6 @@ dist-ssr
 release/
 *.dmg
 electron/
+
+# Claude
+CLAUDE.md
