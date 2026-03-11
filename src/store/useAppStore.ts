@@ -3,16 +3,11 @@ import { devtools } from 'zustand/middleware';
 import { Project, Generation, Edit, SegmentationMask, BrushStroke } from '../types';
 import { CacheService } from '../services/cacheService';
 
-export interface Toast {
-  message: string;
-  type: 'error' | 'success';
-}
-
 interface AppState {
-  // Toast
-  toast: Toast | null;
-  showToast: (toast: Toast) => void;
-  clearToast: () => void;
+  // Error modal
+  errorModal: { message: string } | null;
+  showErrorModal: (message: string) => void;
+  clearErrorModal: () => void;
 
   // Current project
   currentProject: Project | null;
@@ -91,13 +86,10 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   devtools(
     (set, get) => ({
-      // Toast
-      toast: null,
-      showToast: (toast) => {
-        set({ toast });
-        setTimeout(() => set({ toast: null }), 4000);
-      },
-      clearToast: () => set({ toast: null }),
+      // Error modal
+      errorModal: null,
+      showErrorModal: (message) => set({ errorModal: { message } }),
+      clearErrorModal: () => set({ errorModal: null }),
 
       // Initial state
       currentProject: null,

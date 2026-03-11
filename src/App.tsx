@@ -5,7 +5,7 @@ import { Header } from './components/Header';
 import { PromptComposer } from './components/PromptComposer';
 import { ImageCanvas } from './components/ImageCanvas';
 import { HistoryPanel } from './components/HistoryPanel';
-import { Toast } from './components/Toast';
+import { ErrorModal } from './components/ErrorModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { useAppStore } from './store/useAppStore';
 import { CacheService } from './services/cacheService';
@@ -53,7 +53,7 @@ function AppContent() {
   return (
     <div className="h-screen bg-stone-50 text-stone-800 flex flex-col font-body">
       <Header />
-      <Toast />
+      <ErrorModal />
       <div className="flex-1 flex overflow-hidden">
         <div className={cn("flex-shrink-0 transition-all duration-300", !showPromptPanel && "w-8")}>
           <PromptComposer />

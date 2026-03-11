@@ -83,6 +83,7 @@ export const HistoryPanel: React.FC = () => {
             <p className="text-sm text-stone-400">No generations yet</p>
           </div>
         ) : (
+          <div className="max-h-[420px] overflow-y-auto">
           <div className="grid grid-cols-2 gap-2.5">
             {generations.map((generation, index) => (
               <div
@@ -154,6 +155,7 @@ export const HistoryPanel: React.FC = () => {
                 </button>
               </div>
             ))}
+          </div>
           </div>
         )}
       </div>
