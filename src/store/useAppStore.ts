@@ -31,6 +31,7 @@ interface AppState {
   currentPrompt: string;
   temperature: number;
   seed: number | null;
+  imageSize: string;
   
   // History and variants
   selectedGenerationId: string | null;
@@ -69,6 +70,7 @@ interface AppState {
   setCurrentPrompt: (prompt: string) => void;
   setTemperature: (temp: number) => void;
   setSeed: (seed: number | null) => void;
+  setImageSize: (size: string) => void;
   
   addGeneration: (generation: Generation) => void;
   removeGeneration: (id: string) => void;
@@ -108,6 +110,7 @@ export const useAppStore = create<AppState>()(
       currentPrompt: '',
       temperature: 0.7,
       seed: null,
+      imageSize: '1K',
       
       selectedGenerationId: null,
       selectedEditId: null,
@@ -166,6 +169,7 @@ export const useAppStore = create<AppState>()(
       setCurrentPrompt: (prompt) => set({ currentPrompt: prompt }),
       setTemperature: (temp) => set({ temperature: temp }),
       setSeed: (seed) => set({ seed: seed }),
+      setImageSize: (size) => set({ imageSize: size }),
       
       addGeneration: (generation) => {
         set((state) => ({

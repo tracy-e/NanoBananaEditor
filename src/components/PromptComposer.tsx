@@ -34,6 +34,8 @@ export const PromptComposer: React.FC = () => {
     showPromptPanel,
     setShowPromptPanel,
     clearBrushStrokes,
+    imageSize,
+    setImageSize,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -56,7 +58,8 @@ export const PromptComposer: React.FC = () => {
         prompt: currentPrompt,
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         temperature,
-        seed: seed || undefined
+        seed: seed || undefined,
+        imageSize,
       });
     } else if (selectedTool === 'edit' || selectedTool === 'mask') {
       edit(currentPrompt);
@@ -94,6 +97,7 @@ export const PromptComposer: React.FC = () => {
     setCanvasImage(null);
     setSeed(null);
     setTemperature(0.7);
+    setImageSize('1K');
     setShowClearConfirm(false);
   };
 
@@ -318,6 +322,25 @@ export const PromptComposer: React.FC = () => {
 
         {showAdvanced && (
           <div className="mt-3 space-y-3">
+            <div>
+              <label className="text-xs text-stone-500 mb-1.5 block">Resolution</label>
+              <div className="grid grid-cols-3 gap-1.5">
+                {['1K', '2K', '4K'].map((opt) => (
+                  <button
+                    key={opt}
+                    onClick={() => setImageSize(opt)}
+                    className={cn(
+                      'py-1.5 px-2 rounded-md border text-xs font-medium text-center',
+                      imageSize === opt
+                        ? 'bg-amber-50 border-amber-200 text-amber-700'
+                        : 'bg-stone-50 border-stone-200 text-stone-500 hover:bg-stone-100'
+                    )}
+                  >
+                    {opt}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div>
               <label className="text-xs text-stone-500 mb-1.5 block">
                 Creativity ({temperature})

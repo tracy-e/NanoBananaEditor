@@ -88,6 +88,7 @@ export interface GenerationRequest {
   referenceImages?: string[];
   temperature?: number;
   seed?: number;
+  imageSize?: string;
 }
 
 export interface EditRequest {
@@ -97,6 +98,7 @@ export interface EditRequest {
   maskImage?: string;
   temperature?: number;
   seed?: number;
+  imageSize?: string;
 }
 
 export interface SegmentationRequest {
@@ -127,6 +129,7 @@ async function callApi(
   modalities: string[] = ['image', 'text'],
   temperature?: number,
   seed?: number,
+  imageSize?: string,
 ): Promise<OpenRouterResponse> {
   const settings = getApiSettings();
   if (!settings.apiKey) throw new Error('API Key not configured. Open Settings to add your key.');
@@ -138,6 +141,7 @@ async function callApi(
   };
   if (temperature !== undefined) body.temperature = temperature;
   if (seed !== undefined) body.seed = seed;
+  if (imageSize) body.image_size = imageSize;
 
   const url = `${settings.baseUrl.replace(/\/+$/, '')}/chat/completions`;
   const response = await fetch(url, {
@@ -202,6 +206,7 @@ export class GeminiService {
         ['image', 'text'],
         request.temperature,
         request.seed,
+        request.imageSize,
       );
       return extractImages(response);
     } catch (error) {
@@ -222,6 +227,7 @@ export class GeminiService {
         ['image', 'text'],
         request.temperature,
         request.seed,
+        request.imageSize,
       );
       return extractImages(response);
     } catch (error) {

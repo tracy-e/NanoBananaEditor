@@ -22,7 +22,7 @@ export const useImageGeneration = () => {
           type: 'output',
           url: `data:image/png;base64,${base64}`,
           mime: 'image/png',
-          width: 1024, // Default Gemini output size
+          width: 1024,
           height: 1024,
           checksum: base64.slice(0, 32) // Simple checksum
         }));
@@ -102,7 +102,8 @@ export const useImageEditing = () => {
     currentProject,
     seed,
     temperature,
-    showErrorModal
+    showErrorModal,
+    imageSize
   } = useAppStore();
 
   const editMutation = useMutation({
@@ -211,7 +212,8 @@ export const useImageEditing = () => {
         referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
         maskImage,
         temperature,
-        seed
+        seed,
+        size: imageSize
       };
       
       const images = await geminiService.editImage(request);
