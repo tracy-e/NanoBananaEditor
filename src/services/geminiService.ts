@@ -1,5 +1,19 @@
+export type ProviderType = 'openrouter' | 'gemini' | 'custom';
+
+export interface ProviderConfig {
+  apiKey: string;
+  baseUrl: string;
+  model: string;
+}
+
+export interface AllSettings {
+  activeProvider: ProviderType;
+  providers: Record<ProviderType, ProviderConfig>;
+}
+
+/** Flat view returned by getApiSettings() — active provider resolved */
 export interface ApiSettings {
-  provider: 'openrouter' | 'gemini' | 'custom';
+  provider: ProviderType;
   apiKey: string;
   baseUrl: string;
   model: string;
@@ -7,80 +21,120 @@ export interface ApiSettings {
 
 const STORAGE_KEY = 'nano-banana-api-settings';
 
-const PROVIDER_DEFAULTS: Record<string, { baseUrl: string; model: string }> = {
+const PROVIDER_DEFAULTS: Record<ProviderType, ProviderConfig> = {
+  gemini: {
+    apiKey: '',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    model: 'gemini-2.5-flash-preview-05-20',
+  },
   openrouter: {
+    apiKey: '',
     baseUrl: 'https://openrouter.ai/api/v1',
     model: 'google/gemini-2.5-flash-image-preview',
   },
-  gemini: {
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta/openai',
-    model: 'gemini-2.5-flash-preview-05-20',
-  },
   custom: {
+    apiKey: '',
     baseUrl: '',
     model: '',
   },
 };
 
-const DEFAULT_SETTINGS: ApiSettings = {
-  provider: 'custom',
-  apiKey: '',
-  baseUrl: 'https://openrouter.ai/api/v1',
-  model: 'google/gemini-2.5-flash-image-preview',
+const DEFAULT_ALL_SETTINGS: AllSettings = {
+  activeProvider: 'gemini',
+  providers: structuredClone(PROVIDER_DEFAULTS),
 };
 
-// In-memory cache so getApiSettings() stays synchronous
-let _cachedSettings: ApiSettings | null = null;
+let _cached: AllSettings | null = null;
 
 function hasElectronAPI(): boolean {
   return !!(window as any).electronAPI;
 }
 
-/** Load settings from Electron (persistent) or localStorage (fallback). Call once at startup. */
-export async function initApiSettings(): Promise<ApiSettings> {
-  if (hasElectronAPI()) {
-    const data = await (window as any).electronAPI.loadSettings();
-    if (data?.apiKey) {
-      _cachedSettings = data;
-      // Sync to localStorage so the rest of the app can read synchronously
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      return data;
-    }
+/** Migrate old flat format to per-provider format */
+function migrateOldSettings(data: any): AllSettings | null {
+  if (data && data.provider && data.apiKey && !data.providers) {
+    const migrated = structuredClone(DEFAULT_ALL_SETTINGS);
+    migrated.activeProvider = data.provider;
+    migrated.providers[data.provider as ProviderType] = {
+      apiKey: data.apiKey,
+      baseUrl: data.baseUrl || PROVIDER_DEFAULTS[data.provider as ProviderType].baseUrl,
+      model: data.model || PROVIDER_DEFAULTS[data.provider as ProviderType].model,
+    };
+    return migrated;
   }
-  // Fallback: localStorage
-  _cachedSettings = getApiSettingsFromStorage();
-  return _cachedSettings;
+  return null;
 }
 
-function getApiSettingsFromStorage(): ApiSettings {
+function loadFromStorage(): AllSettings {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
-      const settings = JSON.parse(stored) as ApiSettings;
-      if (settings.apiKey) return settings;
+      const data = JSON.parse(stored);
+      if (data.providers) return data as AllSettings;
+      const migrated = migrateOldSettings(data);
+      if (migrated) return migrated;
     }
   } catch { /* ignore */ }
-  return DEFAULT_SETTINGS;
+  return structuredClone(DEFAULT_ALL_SETTINGS);
+}
+
+function resolveFlat(all: AllSettings): ApiSettings {
+  const cfg = all.providers[all.activeProvider];
+  return { provider: all.activeProvider, ...cfg };
+}
+
+export async function initApiSettings(): Promise<ApiSettings> {
+  if (hasElectronAPI()) {
+    const data = await (window as any).electronAPI.loadSettings();
+    if (data) {
+      let all: AllSettings;
+      if (data.providers) {
+        all = data as AllSettings;
+      } else {
+        all = migrateOldSettings(data) || structuredClone(DEFAULT_ALL_SETTINGS);
+      }
+      _cached = all;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+      return resolveFlat(all);
+    }
+  }
+  _cached = loadFromStorage();
+  return resolveFlat(_cached);
 }
 
 export function getApiSettings(): ApiSettings {
-  if (_cachedSettings) return _cachedSettings;
-  _cachedSettings = getApiSettingsFromStorage();
-  return _cachedSettings;
+  if (!_cached) _cached = loadFromStorage();
+  return resolveFlat(_cached);
 }
 
-export function saveApiSettings(settings: ApiSettings) {
-  _cachedSettings = settings;
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  // Persist to ~/.config/ via Electron IPC (fire-and-forget)
+export function getAllSettings(): AllSettings {
+  if (!_cached) _cached = loadFromStorage();
+  return _cached;
+}
+
+export function saveAllSettings(all: AllSettings) {
+  _cached = all;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
   if (hasElectronAPI()) {
-    (window as any).electronAPI.saveSettings(settings);
+    (window as any).electronAPI.saveSettings(all);
   }
   window.dispatchEvent(new Event('api-settings-changed'));
 }
 
+/** @deprecated use saveAllSettings */
+export function saveApiSettings(settings: ApiSettings) {
+  const all = getAllSettings();
+  all.activeProvider = settings.provider;
+  all.providers[settings.provider] = {
+    apiKey: settings.apiKey,
+    baseUrl: settings.baseUrl,
+    model: settings.model,
+  };
+  saveAllSettings(all);
+}
+
 export function getProviderDefaults(provider: string) {
-  return PROVIDER_DEFAULTS[provider] || PROVIDER_DEFAULTS.custom;
+  return PROVIDER_DEFAULTS[provider as ProviderType] || PROVIDER_DEFAULTS.custom;
 }
 
 export interface GenerationRequest {
@@ -124,6 +178,84 @@ interface OpenRouterResponse {
   }>;
 }
 
+function convertToGeminiParts(
+  content: string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
+): Array<Record<string, unknown>> {
+  if (typeof content === 'string') return [{ text: content }];
+  return content.map((part) => {
+    if (part.type === 'text') return { text: part.text };
+    if (part.type === 'image_url' && part.image_url?.url) {
+      const match = part.image_url.url.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (match) return { inlineData: { mimeType: match[1], data: match[2] } };
+    }
+    return { text: '' };
+  });
+}
+
+async function callGeminiNativeApi(
+  settings: ApiSettings,
+  messages: OpenRouterMessage[],
+  modalities: string[],
+  temperature?: number,
+  seed?: number,
+  imageSize?: string,
+): Promise<OpenRouterResponse> {
+  const contents = messages.map((m) => ({
+    role: m.role === 'assistant' ? 'model' : 'user',
+    parts: convertToGeminiParts(m.content),
+  }));
+
+  const generationConfig: Record<string, unknown> = {
+    responseModalities: modalities.map((m) => m.toUpperCase()),
+  };
+  if (temperature !== undefined) generationConfig.temperature = temperature;
+  if (seed !== undefined) generationConfig.seed = seed;
+  if (imageSize) generationConfig.imageConfig = { imageSize };
+
+  const baseUrl = settings.baseUrl.replace(/\/openai\/?$/, '').replace(/\/+$/, '');
+  const url = `${baseUrl}/models/${settings.model}:generateContent?key=${settings.apiKey}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ contents, generationConfig }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`API error (${response.status}): ${errorText}`);
+  }
+
+  const data = await response.json();
+  const candidate = data.candidates?.[0];
+  const parts = candidate?.content?.parts || [];
+
+  const images: Array<{ type: string; image_url: { url: string } }> = [];
+  let textContent = '';
+
+  for (const part of parts) {
+    if (part.inlineData) {
+      const mime = part.inlineData.mimeType || 'image/png';
+      images.push({
+        type: 'image_url',
+        image_url: { url: `data:${mime};base64,${part.inlineData.data}` },
+      });
+    } else if (part.text) {
+      textContent += part.text;
+    }
+  }
+
+  return {
+    choices: [{
+      message: {
+        role: 'assistant',
+        content: textContent || null,
+        ...(images.length > 0 ? { images } : {}),
+      },
+    }],
+  };
+}
+
 async function callApi(
   messages: OpenRouterMessage[],
   modalities: string[] = ['image', 'text'],
@@ -133,6 +265,10 @@ async function callApi(
 ): Promise<OpenRouterResponse> {
   const settings = getApiSettings();
   if (!settings.apiKey) throw new Error('API Key not configured. Open Settings to add your key.');
+
+  if (settings.provider === 'gemini') {
+    return callGeminiNativeApi(settings, messages, modalities, temperature, seed, imageSize);
+  }
 
   const body: Record<string, unknown> = {
     model: settings.model,
