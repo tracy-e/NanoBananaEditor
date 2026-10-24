@@ -36,6 +36,8 @@ export const PromptComposer: React.FC = () => {
     clearBrushStrokes,
     imageSize,
     setImageSize,
+    selectGeneration,
+    selectEdit,
   } = useAppStore();
 
   const { generate } = useImageGeneration();
@@ -232,6 +234,39 @@ export const PromptComposer: React.FC = () => {
             ))}
           </div>
         )}
+
+        {selectedTool === 'mask' && uploadedImages.length > 0 && (
+          <div className="mt-2.5">
+            <div
+              className={cn(
+                'relative aspect-square w-1/2 rounded-lg border-2 overflow-hidden cursor-pointer',
+                canvasImage === uploadedImages[0]
+                  ? 'border-amber-400 shadow-sm'
+                  : 'border-stone-200 hover:border-stone-300'
+              )}
+              onClick={() => {
+                setCanvasImage(uploadedImages[0]);
+                selectGeneration(null);
+                selectEdit(null);
+              }}
+            >
+              <img
+                src={uploadedImages[0]}
+                alt="Uploaded"
+                className="w-full h-full object-cover"
+              />
+              <button
+                onClick={(e) => { e.stopPropagation(); removeUploadedImage(0); setCanvasImage(null); }}
+                className="absolute top-1 right-1 bg-white/90 text-stone-500 hover:text-stone-700 rounded-full w-5 h-5 flex items-center justify-center text-xs shadow-sm"
+              >
+                ×
+              </button>
+              <div className="absolute bottom-1 left-1 bg-white/90 text-xs px-1.5 py-0.5 rounded text-stone-600 shadow-sm">
+                Source
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Prompt */}
@@ -247,7 +282,7 @@ export const PromptComposer: React.FC = () => {
               ? 'A serene mountain landscape at sunset with a lake...'
               : 'Make the sky more dramatic, add storm clouds...'
           }
-          className="min-h-[100px] resize-none"
+          className="min-h-[120px] resize-y"
         />
 
         <button
